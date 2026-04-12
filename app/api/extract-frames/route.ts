@@ -49,11 +49,12 @@ export async function POST(request: Request) {
         );
       } catch (error) {
         console.error("Frame extraction error:", error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         controller.enqueue(
           encoder.encode(
             JSON.stringify({
               type: "error",
-              message: "フレーム抽出に失敗しました",
+              message: `フレーム抽出に失敗しました: ${errorMessage}`,
             }) + "\n"
           )
         );

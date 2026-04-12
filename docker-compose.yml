@@ -8,5 +8,13 @@ services:
     volumes:
       - replay-data:/app/data
 
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
 volumes:
   replay-data:
+  ollama-data:

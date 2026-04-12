@@ -1,7 +1,6 @@
 "use client";
 
-import DetectionOverlay from "./DetectionOverlay";
-import HeatmapView from "./HeatmapView";
+import UnitTracker from "./UnitTracker";
 
 interface Props {
   frames: string[];
@@ -47,18 +46,7 @@ export default function FrameTimeline({
         ))}
       </div>
 
-      {selectedIndex !== null && (
-        <div className="flex gap-6">
-          <DetectionOverlay
-            frameDataUrl={frames[selectedIndex]}
-            timestamp={timestamps[selectedIndex]}
-          />
-          <HeatmapView
-            frameDataUrl={frames[selectedIndex]}
-            timestamp={timestamps[selectedIndex]}
-          />
-        </div>
-      )}
+      <UnitTracker frames={frames} timestamps={timestamps} />
     </div>
   );
 }

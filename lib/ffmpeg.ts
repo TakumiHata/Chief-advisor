@@ -1,12 +1,35 @@
 import ffmpeg from "fluent-ffmpeg";
-import ffmpegStatic from "ffmpeg-static";
 import { writeFile, readFile, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 
-if (ffmpegStatic) {
-  ffmpeg.setFfmpegPath(ffmpegStatic);
+// Resolve binary paths at runtime to avoid Next.js build-time path rewriting.
+// Next.js 16 rewrites import-resolved paths to /ROOT/..., which breaks at runtime.
+function resolveRuntime(candidates: string[]): string | null {
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  return null;
+}
+
+const ffmpegPath = resolveRuntime([
+  join(process.cwd(), "node_modules/ffmpeg-static/ffmpeg"),
+  "/usr/bin/ffmpeg",
+  "/usr/local/bin/ffmpeg",
+]);
+if (ffmpegPath) {
+  ffmpeg.setFfmpegPath(ffmpegPath);
+}
+
+const ffprobePath = resolveRuntime([
+  join(process.cwd(), "node_modules/ffprobe-static/bin/linux/x64/ffprobe"),
+  "/usr/bin/ffprobe",
+  "/usr/local/bin/ffprobe",
+]);
+if (ffprobePath) {
+  ffmpeg.setFfprobePath(ffprobePath);
 }
 
 export interface ExtractResult {
@@ -44,8 +67,8 @@ export async function extractFrames(
 
   try {
     const duration = await getVideoDuration(inputPath);
-    const interval = 5; // seconds
-    const maxFrames = 20;
+    const interval = 1; // seconds
+    const maxFrames = 240;
     const frameCount = Math.min(Math.floor(duration / interval), maxFrames);
 
     if (frameCount === 0) {

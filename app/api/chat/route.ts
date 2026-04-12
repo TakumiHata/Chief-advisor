@@ -40,8 +40,15 @@ export async function POST(request: NextRequest) {
 
   let textMessage = "";
   if (playerData) {
-    textMessage += `【プレイヤー情報】\n名前: ${playerData.name}\nタグ: ${playerData.tag}\nTH: ${playerData.townHallLevel}\n`;
-    textMessage += `ヒーロー: ${playerData.heroes?.map((h: { name: string; level: number }) => `${h.name}(Lv${h.level})`).join(", ") ?? "なし"}\n\n`;
+    textMessage += `【プレイヤー情報】\nタグ: ${playerData.tag}\nTH: ${playerData.townHallLevel}\n`;
+    textMessage += `ヒーロー: ${playerData.heroes?.map((h: { name: string; level: number }) => `${h.name}(Lv${h.level})`).join(", ") ?? "なし"}\n`;
+    if (playerData.equipment?.length) {
+      textMessage += `装備: ${playerData.equipment.map((e: { name: string; level: number }) => `${e.name}(Lv${e.level})`).join(", ")}\n`;
+    }
+    if (playerData.pets?.length) {
+      textMessage += `ペット: ${playerData.pets.map((p: { name: string; level: number }) => `${p.name}(Lv${p.level})`).join(", ")}\n`;
+    }
+    textMessage += "\n";
   }
 
   textMessage += userMessage;
