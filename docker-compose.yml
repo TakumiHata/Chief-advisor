@@ -1,0 +1,7 @@
+services:
+  image-analysis:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - CA_DEBUG=true
