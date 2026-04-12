@@ -1,169 +1,192 @@
 import { NextRequest } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+
+const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://localhost:11434";
+const OLLAMA_MODEL = process.env.OLLAMA_CHAT_MODEL ?? "llama3.2-vision";
 
 const SYSTEM_PROMPT = `あなたはClash of Clansの攻略アドバイザーです。
-TH18・スーパーイエティ編成の専門家として、
-アップロードされたリプレイ動画のフレームを時系列で分析し、
-以下の観点で日本語で振り返りをサポートしてください：
+TH18の攻撃リプレイの分析データに基づいて、以下の観点で日本語でアドバイスしてください：
+
+- 攻撃全体の流れの評価
+- ユニットが大量に失われたタイミングとその原因の推測
 - 良かった点（ファネリング・呪文タイミング・ヒーロー動線など）
-- 改善できる点（どのフレームで何が問題だったか具体的に）
+- 改善できる点（具体的なタイムスタンプを引用して）
 - 次回への提案
-フレームの番号やタイムスタンプを引用しながら具体的に指摘してください。`;
+
+ユニット残数データの「note」フィールドに各時点の状況が記録されています。
+残数が急減しているポイントに注目して、原因と対策を分析してください。`;
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface FrameAnalysis {
+  timestamp: string;
+  heroes: number;
+  tanks: number;
+  dps: number;
+  support: number;
+  spells_active: number;
+  siege: number;
+  total: number;
+  note: string;
+}
+
+function buildAnalysisContext(analysisResults: FrameAnalysis[]): string {
+  if (!analysisResults?.length) return "";
+
+  let context = "【ユニット残数タイムライン】\n";
+  context += "時間 | 合計 | ヒーロー | タンク | 火力 | サポート | 攻城 | 状況\n";
+  context += "---|---|---|---|---|---|---|---\n";
+
+  for (const r of analysisResults) {
+    context += `${r.timestamp} | ${r.total} | ${r.heroes} | ${r.tanks} | ${r.dps} | ${r.support} | ${r.siege} | ${r.note}\n`;
+  }
+
+  // Highlight big drops
+  const drops: string[] = [];
+  for (let i = 1; i < analysisResults.length; i++) {
+    const loss = analysisResults[i - 1].total - analysisResults[i].total;
+    if (loss >= 3) {
+      drops.push(
+        `${analysisResults[i - 1].timestamp}→${analysisResults[i].timestamp}: -${loss}体 (${analysisResults[i].note})`
+      );
+    }
+  }
+
+  if (drops.length > 0) {
+    context += "\n【大量ロストポイント】\n";
+    for (const d of drops) {
+      context += `- ${d}\n`;
+    }
+  }
+
+  return context;
+}
+
+function buildPlayerContext(playerData: Record<string, unknown> | null): string {
+  if (!playerData) return "";
+
+  let text = `【プレイヤー情報】\nタグ: ${playerData.tag}\nTH: ${playerData.townHallLevel}\n`;
+  if (Array.isArray(playerData.heroes)) {
+    text += `ヒーロー: ${playerData.heroes.map((h: { name: string; level: number }) => `${h.name}(Lv${h.level})`).join(", ")}\n`;
+  }
+  if (Array.isArray(playerData.equipment) && playerData.equipment.length) {
+    text += `装備: ${playerData.equipment.map((e: { name: string; level: number }) => `${e.name}(Lv${e.level})`).join(", ")}\n`;
+  }
+  if (Array.isArray(playerData.pets) && playerData.pets.length) {
+    text += `ペット: ${playerData.pets.map((p: { name: string; level: number }) => `${p.name}(Lv${p.level})`).join(", ")}\n`;
+  }
+  return text + "\n";
+}
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return Response.json(
-      { error: "ANTHROPIC_API_KEYが設定されていません" },
-      { status: 500 }
-    );
-  }
-
   const body = await request.json();
-  const { playerData, frames, selectedFrameIndex, messages, userMessage } =
-    body;
+  const { playerData, messages, userMessage, analysisResults } = body;
 
-  const client = new Anthropic({ apiKey });
+  const history = (messages as ChatMessage[] ?? [])
+    .map((m) => `${m.role === "user" ? "ユーザー" : "アドバイザー"}: ${m.content}`)
+    .join("\n");
 
-  const conversationMessages: Anthropic.MessageParam[] = [];
+  const playerContext = buildPlayerContext(playerData);
+  const analysisContext = buildAnalysisContext(analysisResults);
 
-  if (messages && Array.isArray(messages)) {
-    for (const msg of messages) {
-      conversationMessages.push({
-        role: msg.role,
-        content: msg.content,
-      });
-    }
-  }
+  const prompt = [
+    SYSTEM_PROMPT,
+    playerContext,
+    analysisContext,
+    history ? `【会話履歴】\n${history}` : "",
+    `ユーザー: ${userMessage}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
-  const userContent: Anthropic.ContentBlockParam[] = [];
+  const encoder = new TextEncoder();
 
-  let textMessage = "";
-  if (playerData) {
-    textMessage += `【プレイヤー情報】\nタグ: ${playerData.tag}\nTH: ${playerData.townHallLevel}\n`;
-    textMessage += `ヒーロー: ${playerData.heroes?.map((h: { name: string; level: number }) => `${h.name}(Lv${h.level})`).join(", ") ?? "なし"}\n`;
-    if (playerData.equipment?.length) {
-      textMessage += `装備: ${playerData.equipment.map((e: { name: string; level: number }) => `${e.name}(Lv${e.level})`).join(", ")}\n`;
-    }
-    if (playerData.pets?.length) {
-      textMessage += `ペット: ${playerData.pets.map((p: { name: string; level: number }) => `${p.name}(Lv${p.level})`).join(", ")}\n`;
-    }
-    textMessage += "\n";
-  }
+  const readableStream = new ReadableStream({
+    async start(controller) {
+      try {
+        const res = await fetch(`${OLLAMA_URL}/api/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: OLLAMA_MODEL,
+            prompt,
+            stream: true,
+          }),
+        });
 
-  textMessage += userMessage;
-  userContent.push({ type: "text", text: textMessage });
-
-  if (frames && Array.isArray(frames) && frames.length > 0) {
-    if (selectedFrameIndex !== null && selectedFrameIndex !== undefined) {
-      const frame = frames[selectedFrameIndex];
-      if (frame) {
-        const match = frame.match(/^data:(image\/\w+);base64,(.+)$/);
-        if (match) {
-          userContent.push({
-            type: "text",
-            text: `【選択中のフレーム: #${selectedFrameIndex + 1}】`,
-          });
-          userContent.push({
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: match[1] as
-                | "image/jpeg"
-                | "image/png"
-                | "image/gif"
-                | "image/webp",
-              data: match[2],
-            },
-          });
-        }
-      }
-    } else {
-      const framesToSend = frames.slice(0, 10);
-      for (let i = 0; i < framesToSend.length; i++) {
-        const match = framesToSend[i].match(/^data:(image\/\w+);base64,(.+)$/);
-        if (match) {
-          userContent.push({
-            type: "text",
-            text: `【フレーム #${i + 1}】`,
-          });
-          userContent.push({
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: match[1] as
-                | "image/jpeg"
-                | "image/png"
-                | "image/gif"
-                | "image/webp",
-              data: match[2],
-            },
-          });
-        }
-      }
-    }
-  }
-
-  conversationMessages.push({ role: "user", content: userContent });
-
-  try {
-    const stream = client.messages.stream({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages: conversationMessages,
-    });
-
-    const encoder = new TextEncoder();
-
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const event of stream) {
-            if (
-              event.type === "content_block_delta" &&
-              event.delta.type === "text_delta"
-            ) {
-              controller.enqueue(
-                encoder.encode(
-                  JSON.stringify({
-                    type: "text",
-                    content: event.delta.text,
-                  }) + "\n"
-                )
-              );
-            }
-          }
-          controller.enqueue(
-            encoder.encode(JSON.stringify({ type: "done" }) + "\n")
-          );
-        } catch (error) {
-          console.error("Streaming error:", error);
+        if (!res.ok || !res.body) {
+          const errText = await res.text().catch(() => "Unknown error");
           controller.enqueue(
             encoder.encode(
               JSON.stringify({
                 type: "error",
-                message: "AIからの応答取得に失敗しました",
+                message: `Ollama接続エラー (${res.status}): ${errText}`,
               }) + "\n"
             )
           );
-        } finally {
           controller.close();
+          return;
         }
-      },
-    });
 
-    return new Response(readableStream, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "X-Content-Type-Options": "nosniff",
-      },
-    });
-  } catch (error) {
-    console.error("Anthropic API error:", error);
-    return Response.json(
-      { error: "AIからの応答取得に失敗しました" },
-      { status: 500 }
-    );
-  }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const data = JSON.parse(line);
+              if (data.response) {
+                controller.enqueue(
+                  encoder.encode(
+                    JSON.stringify({ type: "text", content: data.response }) + "\n"
+                  )
+                );
+              }
+              if (data.done) {
+                controller.enqueue(
+                  encoder.encode(JSON.stringify({ type: "done" }) + "\n")
+                );
+              }
+            } catch {
+              // skip
+            }
+          }
+        }
+
+        controller.enqueue(
+          encoder.encode(JSON.stringify({ type: "done" }) + "\n")
+        );
+      } catch (error) {
+        console.error("Ollama error:", error);
+        controller.enqueue(
+          encoder.encode(
+            JSON.stringify({
+              type: "error",
+              message: "Ollamaに接続できません。docker compose up -d ollama で起動してください。",
+            }) + "\n"
+          )
+        );
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(readableStream, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
 }

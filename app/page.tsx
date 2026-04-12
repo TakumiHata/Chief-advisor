@@ -7,6 +7,18 @@ import FrameTimeline from "@/components/FrameTimeline";
 import ChatWindow from "@/components/ChatWindow";
 import StatsPanel from "@/components/StatsPanel";
 
+interface FrameAnalysis {
+  timestamp: string;
+  heroes: number;
+  tanks: number;
+  dps: number;
+  support: number;
+  spells_active: number;
+  siege: number;
+  total: number;
+  note: string;
+}
+
 export default function Home() {
   const [playerData, setPlayerData] = useState<PlayerData | null>(null);
   const [frames, setFrames] = useState<string[]>([]);
@@ -14,12 +26,14 @@ export default function Home() {
   const [selectedFrameIndex, setSelectedFrameIndex] = useState<number | null>(
     null
   );
+  const [analysisResults, setAnalysisResults] = useState<FrameAnalysis[]>([]);
 
   const handleFramesExtracted = useCallback(
     (newFrames: string[], newTimestamps: string[]) => {
       setFrames(newFrames);
       setTimestamps(newTimestamps);
       setSelectedFrameIndex(null);
+      setAnalysisResults([]);
     },
     []
   );
@@ -58,11 +72,13 @@ export default function Home() {
             timestamps={timestamps}
             selectedIndex={selectedFrameIndex}
             onSelectFrame={setSelectedFrameIndex}
+            onAnalysisComplete={setAnalysisResults}
           />
           <ChatWindow
             playerData={playerData}
             frames={frames}
             selectedFrameIndex={selectedFrameIndex}
+            analysisResults={analysisResults}
           />
         </main>
       </div>

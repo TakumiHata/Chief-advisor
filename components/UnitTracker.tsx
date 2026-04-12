@@ -17,6 +17,7 @@ interface FrameAnalysis {
 interface Props {
   frames: string[];
   timestamps: string[];
+  onAnalysisComplete?: (results: FrameAnalysis[]) => void;
 }
 
 const CATEGORY_CONFIG = [
@@ -28,7 +29,7 @@ const CATEGORY_CONFIG = [
   { key: "siege", label: "攻城", color: "#6b7280" },
 ] as const;
 
-export default function UnitTracker({ frames, timestamps }: Props) {
+export default function UnitTracker({ frames, timestamps, onAnalysisComplete }: Props) {
   const [results, setResults] = useState<FrameAnalysis[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, timestamp: "" });
@@ -82,6 +83,8 @@ export default function UnitTracker({ frames, timestamps }: Props) {
               });
             } else if (data.type === "frame_result") {
               setResults((prev) => [...prev, data.data]);
+            } else if (data.type === "complete" && data.results) {
+              onAnalysisComplete?.(data.results);
             }
           } catch {
             // skip malformed lines

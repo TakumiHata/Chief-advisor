@@ -2,11 +2,24 @@
 
 import UnitTracker from "./UnitTracker";
 
+interface FrameAnalysis {
+  timestamp: string;
+  heroes: number;
+  tanks: number;
+  dps: number;
+  support: number;
+  spells_active: number;
+  siege: number;
+  total: number;
+  note: string;
+}
+
 interface Props {
   frames: string[];
   timestamps: string[];
   selectedIndex: number | null;
   onSelectFrame: (index: number) => void;
+  onAnalysisComplete?: (results: FrameAnalysis[]) => void;
 }
 
 export default function FrameTimeline({
@@ -14,6 +27,7 @@ export default function FrameTimeline({
   timestamps,
   selectedIndex,
   onSelectFrame,
+  onAnalysisComplete,
 }: Props) {
   if (frames.length === 0) return null;
 
@@ -46,7 +60,7 @@ export default function FrameTimeline({
         ))}
       </div>
 
-      <UnitTracker frames={frames} timestamps={timestamps} />
+      <UnitTracker frames={frames} timestamps={timestamps} onAnalysisComplete={onAnalysisComplete} />
     </div>
   );
 }

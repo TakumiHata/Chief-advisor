@@ -9,16 +9,30 @@ interface Message {
   content: string;
 }
 
+interface FrameAnalysis {
+  timestamp: string;
+  heroes: number;
+  tanks: number;
+  dps: number;
+  support: number;
+  spells_active: number;
+  siege: number;
+  total: number;
+  note: string;
+}
+
 interface Props {
   playerData: PlayerData | null;
   frames: string[];
   selectedFrameIndex: number | null;
+  analysisResults?: FrameAnalysis[];
 }
 
 export default function ChatWindow({
   playerData,
   frames,
   selectedFrameIndex,
+  analysisResults,
 }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -46,8 +60,7 @@ export default function ChatWindow({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           playerData,
-          frames,
-          selectedFrameIndex,
+          analysisResults,
           messages: messages.map((m) => ({
             role: m.role,
             content: m.content,
