@@ -5,3 +5,8 @@ services:
       - "8000:8000"
     environment:
       - CA_DEBUG=true
+    volumes:
+      - replay-data:/app/data
+
+volumes:
+  replay-data:

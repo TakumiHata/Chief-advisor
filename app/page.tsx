@@ -5,6 +5,7 @@ import PlayerInput, { PlayerData } from "@/components/PlayerInput";
 import VideoUpload from "@/components/VideoUpload";
 import FrameTimeline from "@/components/FrameTimeline";
 import ChatWindow from "@/components/ChatWindow";
+import StatsPanel from "@/components/StatsPanel";
 
 export default function Home() {
   const [playerData, setPlayerData] = useState<PlayerData | null>(null);
@@ -46,6 +47,8 @@ export default function Home() {
           </div>
 
           <VideoUpload onFramesExtracted={handleFramesExtracted} />
+
+          <StatsPanel />
         </aside>
 
         {/* Right Panel (65%) */}
