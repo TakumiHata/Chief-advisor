@@ -1,5 +1,7 @@
 "use client";
 
+import DetectionOverlay from "./DetectionOverlay";
+
 interface Props {
   frames: string[];
   timestamps: string[];
@@ -16,7 +18,7 @@ export default function FrameTimeline({
   if (frames.length === 0) return null;
 
   return (
-    <div className="border-b border-gray-800 bg-gray-900/50 p-3">
+    <div className="border-b border-gray-800 bg-gray-900/50 p-3 space-y-3">
       <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
         フレームタイムライン
       </h4>
@@ -43,6 +45,13 @@ export default function FrameTimeline({
           </button>
         ))}
       </div>
+
+      {selectedIndex !== null && (
+        <DetectionOverlay
+          frameDataUrl={frames[selectedIndex]}
+          timestamp={timestamps[selectedIndex]}
+        />
+      )}
     </div>
   );
 }
