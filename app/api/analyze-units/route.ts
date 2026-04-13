@@ -5,21 +5,35 @@ const OLLAMA_MODEL = process.env.OLLAMA_VISION_MODEL ?? "llama3.2-vision";
 const LLM_PROVIDER = process.env.LLM_PROVIDER ?? "ollama"; // "ollama" | "claude"
 
 const UNIT_COUNT_PROMPT = `あなたはClash of Clansのリプレイ画像を分析する専門家です。
-この攻撃フレーム画像を見て、画面上に見える**攻撃側のユニット（自軍）**の残数を数えてください。
+この攻撃フレーム画像を見て、以下の情報を正確に抽出してください。
 
-以下のカテゴリごとに数えてください：
+■ ユニット残数（攻撃側・自軍のみカウント）
 - heroes: ヒーロー（バーバリアンキング、アーチャークイーン、グランドウォーデン、ロイヤルチャンピオン等）
-- tanks: タンク系（ゴーレム、イエティ、ジャイアント等）
+- tanks: タンク系（ゴーレム、イエティ、スーパーイエティ、ジャイアント等）
 - dps: 火力系（ウィザード、ボウラー、ウィッチ、バルキリー等）
 - support: サポート系（ヒーラー等）
 - spells_active: 画面上で発動中のスペルエフェクト数
 - siege: 攻城兵器
 - total: 全ユニット合計の概算
 
-また、この時点の攻撃状況を1行で簡潔に説明してください（例：「タウンホール付近でインフェルノに焼かれている」）
+■ 防衛施設の状態
+- active_defenses: 画面上で稼働中の主要防衛施設名をリストアップ（インフェルノタワー、イーグル砲、スキャッターショット、モノリス、X-Bow等）
+- destroyed_defenses: 破壊済みの防衛施設が確認できればリストアップ
+
+■ 呪文・スペルエフェクト
+- spell_effects: 発動中の呪文名（レイジ、フリーズ、ヒール、ポイズン等。エフェクトの色や形状から判断）
+
+■ ヒーロー状態
+- hero_status: 確認できるヒーローの位置と状態（例: "BK:中央付近で戦闘中, AQ:右側でクイヒー中"）
+
+■ 被害源
+- damage_source: ユニットにダメージを与えている主な防衛施設（例: "インフェルノタワー(単体)がタンクを照射中"）
+
+■ 状況説明
+- note: この時点の戦況を1〜2行で説明
 
 必ず以下のJSON形式のみで返答してください。他のテキストは不要です：
-{"heroes":数,"tanks":数,"dps":数,"support":数,"spells_active":数,"siege":数,"total":数,"note":"状況説明"}`;
+{"heroes":数,"tanks":数,"dps":数,"support":数,"spells_active":数,"siege":数,"total":数,"active_defenses":"施設名,施設名","destroyed_defenses":"施設名,施設名","spell_effects":"呪文名,呪文名","hero_status":"状態説明","damage_source":"被害源説明","note":"状況説明"}`;
 
 interface FrameAnalysis {
   timestamp: string;
@@ -30,6 +44,11 @@ interface FrameAnalysis {
   spells_active: number;
   siege: number;
   total: number;
+  active_defenses: string;
+  destroyed_defenses: string;
+  spell_effects: string;
+  hero_status: string;
+  damage_source: string;
   note: string;
 }
 
@@ -101,6 +120,11 @@ function parseAnalysis(text: string, ts: string): FrameAnalysis | null {
       spells_active: parsed.spells_active ?? 0,
       siege: parsed.siege ?? 0,
       total: parsed.total ?? 0,
+      active_defenses: parsed.active_defenses ?? "",
+      destroyed_defenses: parsed.destroyed_defenses ?? "",
+      spell_effects: parsed.spell_effects ?? "",
+      hero_status: parsed.hero_status ?? "",
+      damage_source: parsed.damage_source ?? "",
       note: parsed.note ?? "",
     };
   } catch {

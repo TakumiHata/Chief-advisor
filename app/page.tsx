@@ -16,6 +16,11 @@ interface FrameAnalysis {
   spells_active: number;
   siege: number;
   total: number;
+  active_defenses: string;
+  destroyed_defenses: string;
+  spell_effects: string;
+  hero_status: string;
+  damage_source: string;
   note: string;
 }
 

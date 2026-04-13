@@ -11,6 +11,11 @@ interface FrameAnalysis {
   spells_active: number;
   siege: number;
   total: number;
+  active_defenses: string;
+  destroyed_defenses: string;
+  spell_effects: string;
+  hero_status: string;
+  damage_source: string;
   note: string;
 }
 
@@ -263,6 +268,30 @@ export default function UnitTracker({ frames, timestamps, onAnalysisComplete }: 
                 <Stat label="攻城" value={selectedPoint.siege} color="#6b7280" />
               </div>
               <p className="text-sm text-gray-300">{selectedPoint.note}</p>
+              {(selectedPoint.active_defenses || selectedPoint.damage_source || selectedPoint.spell_effects || selectedPoint.hero_status) && (
+                <div className="mt-2 pt-2 border-t border-gray-700 space-y-1">
+                  {selectedPoint.damage_source && (
+                    <p className="text-xs text-red-400">
+                      <span className="text-gray-500">被害源:</span> {selectedPoint.damage_source}
+                    </p>
+                  )}
+                  {selectedPoint.active_defenses && (
+                    <p className="text-xs text-orange-400">
+                      <span className="text-gray-500">稼働中防衛:</span> {selectedPoint.active_defenses}
+                    </p>
+                  )}
+                  {selectedPoint.spell_effects && (
+                    <p className="text-xs text-cyan-400">
+                      <span className="text-gray-500">発動中呪文:</span> {selectedPoint.spell_effects}
+                    </p>
+                  )}
+                  {selectedPoint.hero_status && (
+                    <p className="text-xs text-blue-400">
+                      <span className="text-gray-500">ヒーロー:</span> {selectedPoint.hero_status}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

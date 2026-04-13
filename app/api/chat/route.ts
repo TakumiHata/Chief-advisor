@@ -34,6 +34,11 @@ interface FrameAnalysis {
   spells_active: number;
   siege: number;
   total: number;
+  active_defenses: string;
+  destroyed_defenses: string;
+  spell_effects: string;
+  hero_status: string;
+  damage_source: string;
   note: string;
 }
 
@@ -48,13 +53,24 @@ function buildAnalysisContext(analysisResults: FrameAnalysis[]): string {
     context += `${r.timestamp} | ${r.total} | ${r.heroes} | ${r.tanks} | ${r.dps} | ${r.support} | ${r.siege} | ${r.note}\n`;
   }
 
+  // Detailed frame info
+  context += "\n【各フレーム詳細】\n";
+  for (const r of analysisResults) {
+    context += `[${r.timestamp}]\n`;
+    if (r.active_defenses) context += `  稼働中防衛: ${r.active_defenses}\n`;
+    if (r.destroyed_defenses) context += `  破壊済み: ${r.destroyed_defenses}\n`;
+    if (r.spell_effects) context += `  発動中呪文: ${r.spell_effects}\n`;
+    if (r.hero_status) context += `  ヒーロー: ${r.hero_status}\n`;
+    if (r.damage_source) context += `  被害源: ${r.damage_source}\n`;
+  }
+
   // Highlight big drops
   const drops: string[] = [];
   for (let i = 1; i < analysisResults.length; i++) {
     const loss = analysisResults[i - 1].total - analysisResults[i].total;
     if (loss >= 3) {
       drops.push(
-        `${analysisResults[i - 1].timestamp}→${analysisResults[i].timestamp}: -${loss}体 (${analysisResults[i].note})`
+        `${analysisResults[i - 1].timestamp}→${analysisResults[i].timestamp}: -${loss}体 (被害源: ${analysisResults[i].damage_source || "不明"}, ${analysisResults[i].note})`
       );
     }
   }
