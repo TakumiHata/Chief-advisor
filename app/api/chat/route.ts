@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { COC_KNOWLEDGE, COC_KNOWLEDGE_INSTRUCTION } from "@/lib/coc-knowledge";
 
 const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_CHAT_MODEL ?? "llama3.2-vision";
@@ -7,13 +8,17 @@ const SYSTEM_PROMPT = `あなたはClash of Clansの攻略アドバイザーで�
 TH18の攻撃リプレイの分析データに基づいて、以下の観点で日本語でアドバイスしてください：
 
 - 攻撃全体の流れの評価
-- ユニットが大量に失われたタイミングとその原因の推測
+- ユニットが大量に失われたタイミングとその原因の推測（具体的な防衛施設名を挙げる）
 - 良かった点（ファネリング・呪文タイミング・ヒーロー動線など）
-- 改善できる点（具体的なタイムスタンプを引用して）
-- 次回への提案
+- 改善できる点（具体的なタイムスタンプと施設名・呪文名を引用して）
+- 次回への提案（具体的な手順レベルで）
 
 ユニット残数データの「note」フィールドに各時点の状況が記録されています。
-残数が急減しているポイントに注目して、原因と対策を分析してください。`;
+残数が急減しているポイントに注目して、原因と対策を分析してください。
+
+${COC_KNOWLEDGE_INSTRUCTION}
+
+${COC_KNOWLEDGE}`;
 
 interface ChatMessage {
   role: "user" | "assistant";
