@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import analyze, detect, heatmap, stats
+from app.routers import analyze, detect, heatmap, knowledge, stats, youtube
 
 app = FastAPI(title=settings.app_name)
 
@@ -17,6 +17,8 @@ app.include_router(analyze.router, prefix="/api")
 app.include_router(detect.router, prefix="/api")
 app.include_router(heatmap.router, prefix="/api")
 app.include_router(stats.router, prefix="/api")
+app.include_router(knowledge.router, prefix="/api")
+app.include_router(youtube.router, prefix="/api")
 
 
 @app.get("/health")

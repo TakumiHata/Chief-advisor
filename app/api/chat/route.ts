@@ -3,6 +3,7 @@ import { COC_KNOWLEDGE, COC_KNOWLEDGE_INSTRUCTION } from "@/lib/coc-knowledge";
 
 const OLLAMA_URL = process.env.OLLAMA_URL ?? "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_CHAT_MODEL ?? "llama3.2-vision";
+const IMAGE_ANALYSIS_URL = process.env.IMAGE_ANALYSIS_URL ?? "http://localhost:8000";
 
 const SYSTEM_PROMPT = `あなたはClash of Clansの攻略アドバイザーです。
 TH18の攻撃リプレイの分析データに基づいて、以下の観点で日本語でアドバイスしてください：
@@ -101,6 +102,28 @@ function buildPlayerContext(playerData: Record<string, unknown> | null): string 
   return text + "\n";
 }
 
+async function searchKnowledge(query: string): Promise<string> {
+  try {
+    const res = await fetch(`${IMAGE_ANALYSIS_URL}/api/knowledge/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, n_results: 3 }),
+    });
+    if (!res.ok) return "";
+    const data = await res.json();
+    if (!data.results?.length) return "";
+
+    let context = "【関連する戦術ナレッジ（RAG）】\n";
+    for (const r of data.results) {
+      context += `- ${r.document}\n`;
+    }
+    return context;
+  } catch {
+    // RAG unavailable — continue without it
+    return "";
+  }
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const { playerData, messages, userMessage, analysisResults } = body;
@@ -112,10 +135,21 @@ export async function POST(request: NextRequest) {
   const playerContext = buildPlayerContext(playerData);
   const analysisContext = buildAnalysisContext(analysisResults);
 
+  // Build RAG query from user message + analysis notes
+  const ragQuery = [
+    userMessage,
+    ...(analysisResults ?? [])
+      .filter((r: FrameAnalysis) => r.damage_source || r.note)
+      .slice(-3)
+      .map((r: FrameAnalysis) => r.damage_source || r.note),
+  ].join(" ");
+  const ragContext = await searchKnowledge(ragQuery);
+
   const prompt = [
     SYSTEM_PROMPT,
     playerContext,
     analysisContext,
+    ragContext,
     history ? `【会話履歴】\n${history}` : "",
     `ユーザー: ${userMessage}`,
   ]

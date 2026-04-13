@@ -5,8 +5,20 @@ services:
       - "8000:8000"
     environment:
       - CA_DEBUG=true
+      - CA_CHROMA_HOST=chromadb
+      - CA_CHROMA_PORT=8100
+      - CA_YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
     volumes:
       - replay-data:/app/data
+    depends_on:
+      - chromadb
+
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8100:8000"
+    volumes:
+      - chroma-data:/chroma/chroma
 
   ollama:
     image: ollama/ollama:latest
@@ -17,4 +29,5 @@ services:
 
 volumes:
   replay-data:
+  chroma-data:
   ollama-data:
